@@ -85,8 +85,20 @@ ipv6Tests = testGroup "IPv6"
       (maxBound :: IPv6) @?= IPv6 0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF
   ]
 
+multiaddrTests :: TestTree
+multiaddrTests = testGroup "multiaddr"
+  [ testCase "round trips sample multiaddrs" $
+    mapM_ (\t -> toText (fromJust (readMultiaddr t)) @?= t)
+    [ ""
+    , "/ip4/127.0.0.1"
+    , "/ip4/127.0.0.1/tcp/80"
+    , "/ip4/127.0.0.1/tcp/80/ip6/::1"
+    , "/ip4/127.0.0.1/tcp/80/ip6/::1/udp/1234"
+    ]
+  ]
+
 tests :: TestTree
-tests = testGroup "Network.Multiaddr" [ipv4Tests, ipv6Tests]
+tests = testGroup "Network.Multiaddr" [ipv4Tests, ipv6Tests, multiaddrTests]
 
 main :: IO ()
 main = defaultMain tests
