@@ -213,7 +213,9 @@ data AddrPart = IPv4Part !IPv4
               | IPFSPart !ByteString
               | UDTPart
               | UTPPart
-              deriving Eq
+              deriving (Eq, Generic, Typeable)
+
+instance Hashable AddrPart
 
 instance Serialize AddrPart where
   put (IPv4Part ip) = put (4 :: Varint Word32) >> put ip
@@ -243,7 +245,9 @@ instance Serialize AddrPart where
 
 -- | A network address.
 newtype Multiaddr = Multiaddr { _parts :: [AddrPart] }
-                  deriving (Eq, Monoid)
+                  deriving (Eq, Monoid, Generic, Typeable)
+
+instance Hashable Multiaddr
 
 instance Serialize Multiaddr where
   get = Multiaddr <$> many get
