@@ -1,12 +1,13 @@
 # hs-multiaddr
 
+[![Hackage](http://img.shields.io/hackage/v/multiaddr.svg)](https://hackage.haskell.org/package/multiaddr)
 [![Build Status](https://travis-ci.org/micxjo/hs-multiaddr.svg?branch=master)](https://travis-ci.org/micxjo/hs-multiaddr)
 
 A [multiaddr](https://github.com/jbenet/multiaddr) implementation in Haskell. Multiaddr is a self-describing network address format supporting a variety of protocols, with both string and binary representations.
 
 ## Installation
 
-Just clone and ``stack build``. Will be uploaded to Hackage soon!
+We're on [Hackage](https://hackage.haskell.org/package/multiaddr), so just add ``multiaddr`` to your cabal build-depends.
 
 ## Usage
 
