@@ -13,6 +13,7 @@ module Network.Multiaddr
        , fromBytes
        , fromPieces
        , readMultiaddr
+       , parts
        , encode
        , decode
        , encapsulate
@@ -183,7 +184,7 @@ data AddrPart = IPv4Part !IPv4
               | IPFSPart !ByteString
               | UDTPart
               | UTPPart
-              deriving (Eq, Show)
+              deriving Eq
 
 instance Serialize AddrPart where
   put (IPv4Part ip) = put (4 :: Varint Word32) >> put ip
@@ -217,7 +218,10 @@ newtype Multiaddr = Multiaddr { _parts :: [AddrPart] }
 instance Serialize Multiaddr where
   get = Multiaddr <$> many get
 
-  put (Multiaddr parts) = mapM_ put parts
+  put (Multiaddr ps) = mapM_ put ps
+
+parts :: Multiaddr -> [AddrPart]
+parts = _parts
 
 ipv4PartP :: Parser AddrPart
 ipv4PartP = IPv4Part <$> (string "/ip4/" *> ipv4P)
@@ -285,8 +289,14 @@ addrPartB (IPFSPart addr) = fromText "/ipfs/" <> fromText (T.decodeUtf8 addr)
 addrPartB UDTPart = fromText "/udt"
 addrPartB UTPPart = fromText "/utp"
 
+instance TextIP AddrPart where
+  toText = toStrict . toLazyText . addrPartB
+
+instance Show AddrPart where
+  show = T.unpack . toText
+
 multiaddrB :: Multiaddr -> Builder
-multiaddrB (Multiaddr parts) = mconcat (map addrPartB parts)
+multiaddrB (Multiaddr ps) = mconcat (map addrPartB ps)
 
 instance TextIP Multiaddr where
   toText = toStrict . toLazyText . multiaddrB
