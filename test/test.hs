@@ -87,8 +87,18 @@ ipv6Tests = testGroup "IPv6"
 
 multiaddrTests :: TestTree
 multiaddrTests = testGroup "multiaddr"
-  [ testCase "round trips sample multiaddrs" $
+  [ testCase "round trips sample multiaddrs via text" $
     mapM_ (\t -> toText (fromJust (readMultiaddr t)) @?= t)
+    [ ""
+    , "/ip4/127.0.0.1"
+    , "/ip4/127.0.0.1/tcp/80"
+    , "/ip4/127.0.0.1/tcp/80/ip6/::1"
+    , "/ip4/127.0.0.1/tcp/80/ip6/::1/udp/1234"
+    ]
+
+  , testCase "round trips sample multiaddrs via binary" $
+    mapM_ (\t -> let ma = fromJust (readMultiaddr t)
+                 in fromJust (decode (encode ma)) @?= ma)
     [ ""
     , "/ip4/127.0.0.1"
     , "/ip4/127.0.0.1/tcp/80"

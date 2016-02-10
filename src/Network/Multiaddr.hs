@@ -12,9 +12,11 @@ module Network.Multiaddr
        , fromBytes
        , fromPieces
        , readMultiaddr
+       , encode
+       , decode
        ) where
 
-import           Control.Applicative ((<|>))
+import           Control.Applicative ((<|>), many)
 import           Control.Monad (guard)
 import           Data.Bits
 import           Data.List (intersperse, scanl', elemIndex)
@@ -26,7 +28,10 @@ import           GHC.Word (Word32, Word16, Word8)
 
 import           Control.Error (hush)
 import           Data.Attoparsec.Text hiding (take)
+import           Data.ByteString (ByteString)
 import           Data.Hashable (Hashable)
+import           Data.Serialize (Serialize(..), Get)
+import qualified Data.Serialize as Cereal
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Text.Lazy (toStrict)
@@ -39,6 +44,10 @@ data IPv4 = IPv4 {-# UNPACK #-} !Word32
 
 instance Hashable IPv4
 
+instance Serialize IPv4 where
+  get = IPv4 <$> get
+  put (IPv4 w) = put w
+
 data IPv6 = IPv6
             {-# UNPACK #-} !Word32
             {-# UNPACK #-} !Word32
@@ -47,6 +56,10 @@ data IPv6 = IPv6
           deriving (Eq, Ord, Bounded, Generic, Typeable)
 
 instance Hashable IPv6
+
+instance Serialize IPv6 where
+  get = IPv6 <$> get <*> get <*> get <*> get
+  put (IPv6 a b c d) = put a >> put b >> put c >> put d
 
 asBytes :: IPv4 -> [Word8]
 asBytes (IPv4 ip) =
@@ -157,8 +170,28 @@ data AddrPart = IPv4Part !IPv4
               | TCPPart !Word16
               deriving (Eq, Show)
 
+instance Serialize AddrPart where
+  put (IPv4Part ip) = put (4 :: Word8) >> put ip
+  put (IPv6Part ip) = put (41 :: Word8) >> put ip
+  put (UDPPart port) = put (17 :: Word8) >> put port
+  put (TCPPart port) = put (6 :: Word8) >> put port
+
+  get = do
+    code <- get :: Get Word8
+    case code of
+      4 -> IPv4Part <$> get
+      6 -> TCPPart <$> get
+      17 -> UDPPart <$> get
+      41 -> IPv6Part <$> get
+      _ -> fail "invalid multiaddr code"
+
 newtype Multiaddr = Multiaddr { _parts :: [AddrPart] }
                   deriving (Eq, Monoid)
+
+instance Serialize Multiaddr where
+  get = Multiaddr <$> many get
+
+  put (Multiaddr parts) = mapM_ put parts
 
 ipv4PartP :: Parser AddrPart
 ipv4PartP = IPv4Part <$> (string "/ip4/" *> ipv4P)
@@ -208,3 +241,9 @@ instance TextIP Multiaddr where
 
 instance Show Multiaddr where
   show = T.unpack . toText
+
+encode :: Multiaddr -> ByteString
+encode = Cereal.encode
+
+decode :: ByteString -> Maybe Multiaddr
+decode = hush . Cereal.decode
