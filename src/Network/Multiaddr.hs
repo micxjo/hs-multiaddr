@@ -36,12 +36,12 @@ module Network.Multiaddr
          -- * AddrPart type
        , AddrPart(..)
 
-         -- * IPv4
+         -- * IPv4 type
        , IPv4(..)
        , readIPv4
        , fromBytes
 
-         -- * IPv6 Type
+         -- * IPv6 type
        , IPv6(..)
        , readIPv6
        , fromPieces
@@ -140,6 +140,7 @@ ipv4P = do
   d <- word8P
   pure (fromBytes (a, b, c, d))
 
+-- | Try to read an IPv4 address (e.g. @"192.168.1.2"@)
 readIPv4 :: Text -> Maybe IPv4
 readIPv4 = hush . parseOnly (ipv4P <* endOfInput)
 
@@ -162,6 +163,8 @@ ipv6P = do
           fromPieces (a, b, c, d, e, f, g, h)
         fromPieces' _ = error "unreachable"
 
+-- | Try to read an IPv6 address
+-- (e.g. @"2001:db8:85a3:8d3:1319:8a2e:370:7348"@)
 readIPv6 :: Text -> Maybe IPv6
 readIPv6 = hush . parseOnly (ipv6P <* endOfInput)
 
