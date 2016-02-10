@@ -109,6 +109,18 @@ multiaddrTests = testGroup "multiaddr"
     , "/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC"
     , "/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC/tcp/1234"
     ]
+
+  , testCase "protocolNames" $
+    mapM_ (\(ma, ps) -> protocolNames (fromJust (readMultiaddr ma)) @?= ps)
+    [ ("", [])
+    , ("/ip4/127.0.0.1", ["ip4"])
+    , ("/ip4/127.0.0.1/tcp/80", ["ip4", "tcp"])
+    , ("/ip4/127.0.0.1/tcp/80/ip6/::1", ["ip4", "tcp", "ip6"])
+    , ("/ip4/127.0.0.1/tcp/80/ip6/::1/udp/1234", ["ip4", "tcp", "ip6", "udp"])
+    , ("/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC", ["ipfs"])
+    , ("/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC/tcp/1234",
+       ["ipfs", "tcp"])
+    ]
   ]
 
 tests :: TestTree

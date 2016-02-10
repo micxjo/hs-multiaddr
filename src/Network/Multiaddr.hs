@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 module Network.Multiaddr
        ( IPv4(..)
        , IPv6(..)
@@ -14,6 +15,13 @@ module Network.Multiaddr
        , readMultiaddr
        , encode
        , decode
+       , encapsulate
+       , hasIPv4
+       , hasIPv6
+       , hasUDP
+       , hasTCP
+       , hasIPFS
+       , protocolNames
        ) where
 
 import           Control.Applicative ((<|>), many)
@@ -266,3 +274,29 @@ encode = Cereal.encode
 
 decode :: ByteString -> Maybe Multiaddr
 decode = hush . Cereal.decode
+
+hasIPv4 :: Multiaddr -> Bool
+hasIPv4 (Multiaddr ps) = any (\case IPv4Part _ -> True; _ -> False) ps
+
+hasIPv6 :: Multiaddr -> Bool
+hasIPv6 (Multiaddr ps) = any (\case IPv6Part _ -> True; _ -> False) ps
+
+hasTCP :: Multiaddr -> Bool
+hasTCP (Multiaddr ps) = any (\case TCPPart _ -> True; _ -> False) ps
+
+hasUDP :: Multiaddr -> Bool
+hasUDP (Multiaddr ps) = any (\case UDPPart _ -> True; _ -> False) ps
+
+hasIPFS :: Multiaddr -> Bool
+hasIPFS (Multiaddr ps) = any (\case IPFSPart _ -> True; _ -> False) ps
+
+encapsulate :: Multiaddr -> Multiaddr -> Multiaddr
+encapsulate = mappend
+
+protocolNames :: Multiaddr -> [Text]
+protocolNames (Multiaddr ms) = map protoName ms
+  where protoName (IPv4Part _) = "ip4"
+        protoName (IPv6Part _) = "ip6"
+        protoName (UDPPart _) = "udp"
+        protoName (TCPPart _) = "tcp"
+        protoName (IPFSPart _) = "ipfs"
