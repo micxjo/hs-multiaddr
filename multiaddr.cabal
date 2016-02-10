@@ -16,6 +16,7 @@ library
   hs-source-dirs:      src
   ghc-options:         -Wall -fwarn-incomplete-uni-patterns
   exposed-modules:     Network.Multiaddr
+  other-modules:       Data.Serialize.Varint
   build-depends:       base >= 4.7 && < 5
                      , attoparsec
                      , text

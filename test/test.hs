@@ -94,6 +94,8 @@ multiaddrTests = testGroup "multiaddr"
     , "/ip4/127.0.0.1/tcp/80"
     , "/ip4/127.0.0.1/tcp/80/ip6/::1"
     , "/ip4/127.0.0.1/tcp/80/ip6/::1/udp/1234"
+    , "/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC"
+    , "/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC/tcp/1234"
     ]
 
   , testCase "round trips sample multiaddrs via binary" $
@@ -104,6 +106,8 @@ multiaddrTests = testGroup "multiaddr"
     , "/ip4/127.0.0.1/tcp/80"
     , "/ip4/127.0.0.1/tcp/80/ip6/::1"
     , "/ip4/127.0.0.1/tcp/80/ip6/::1/udp/1234"
+    , "/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC"
+    , "/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC/tcp/1234"
     ]
   ]
 

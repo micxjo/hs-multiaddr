@@ -24,20 +24,24 @@ import           Data.Maybe (fromJust)
 import           Data.Monoid ((<>))
 import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
-import           GHC.Word (Word32, Word16, Word8)
+import           GHC.Word (Word32, Word16, Word8, Word64)
 
 import           Control.Error (hush)
 import           Data.Attoparsec.Text hiding (take)
 import           Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import           Data.Hashable (Hashable)
-import           Data.Serialize (Serialize(..), Get)
+import           Data.Serialize (Serialize(..), Get, getBytes)
 import qualified Data.Serialize as Cereal
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import           Data.Text.Lazy (toStrict)
 import           Data.Text.Lazy.Builder (Builder, toLazyText, singleton,
                                          fromText)
 import qualified Data.Text.Lazy.Builder.Int as Builder
+
+import           Data.Serialize.Varint
 
 data IPv4 = IPv4 {-# UNPACK #-} !Word32
           deriving (Eq, Ord, Bounded, Generic, Typeable)
@@ -168,21 +172,29 @@ data AddrPart = IPv4Part !IPv4
               | IPv6Part !IPv6
               | UDPPart !Word16
               | TCPPart !Word16
+              | IPFSPart !ByteString
               deriving (Eq, Show)
 
 instance Serialize AddrPart where
-  put (IPv4Part ip) = put (4 :: Word8) >> put ip
-  put (IPv6Part ip) = put (41 :: Word8) >> put ip
-  put (UDPPart port) = put (17 :: Word8) >> put port
-  put (TCPPart port) = put (6 :: Word8) >> put port
+  put (IPv4Part ip) = put (4 :: Varint Word32) >> put ip
+  put (IPv6Part ip) = put (41 :: Varint Word32) >> put ip
+  put (UDPPart port) = put (17 :: Varint Word32) >> put port
+  put (TCPPart port) = put (6 :: Varint Word32) >> put port
+  put (IPFSPart addr) = do
+    put (421 :: Varint Word32)
+    put (fromIntegral (BS.length addr) :: Varint Word64)
+    mapM_ put (BS.unpack addr)
 
   get = do
-    code <- get :: Get Word8
+    code <- get :: Get (Varint Word32)
     case code of
       4 -> IPv4Part <$> get
       6 -> TCPPart <$> get
       17 -> UDPPart <$> get
       41 -> IPv6Part <$> get
+      421 -> do
+        len <- get :: Get (Varint Word64)
+        IPFSPart <$> getBytes (fromIntegral len)
       _ -> fail "invalid multiaddr code"
 
 newtype Multiaddr = Multiaddr { _parts :: [AddrPart] }
@@ -213,16 +225,22 @@ tcpPartP = do
   guard (port >= 0 && port <= 65535)
   pure (TCPPart (fromIntegral port))
 
-ipAddrP :: Parser Multiaddr
-ipAddrP = do
-  ipPart <- ipv4PartP <|> ipv6PartP
+ipfsPartP :: Parser AddrPart
+ipfsPartP = do
+  _ <- string "/ipfs/"
+  addr <- takeTill (== '/')
+  pure (IPFSPart (T.encodeUtf8 addr))
+
+addrP :: Parser Multiaddr
+addrP = do
+  ipPart <- ipv4PartP <|> ipv6PartP <|> ipfsPartP
   port <- option Nothing (Just <$> (udpPartP <|> tcpPartP))
   pure $ case port of
     Nothing -> Multiaddr [ipPart]
     Just port' -> Multiaddr [ipPart, port']
 
 multiaddrP :: Parser Multiaddr
-multiaddrP = mconcat <$> many' ipAddrP
+multiaddrP = mconcat <$> many' addrP
 
 readMultiaddr :: Text -> Maybe Multiaddr
 readMultiaddr = hush . parseOnly (multiaddrP <* endOfInput)
@@ -232,6 +250,7 @@ addrPartB (IPv4Part ip) = fromText "/ip4/" <> ipv4B ip
 addrPartB (IPv6Part ip) = fromText "/ip6/" <> ipv6B ip
 addrPartB (UDPPart port) = fromText "/udp/" <> Builder.decimal port
 addrPartB (TCPPart port) = fromText "/tcp/" <> Builder.decimal port
+addrPartB (IPFSPart addr) = fromText "/ipfs/" <> fromText (T.decodeUtf8 addr)
 
 multiaddrB :: Multiaddr -> Builder
 multiaddrB (Multiaddr parts) = mconcat (map addrPartB parts)
