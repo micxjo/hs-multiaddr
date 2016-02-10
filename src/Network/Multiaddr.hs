@@ -21,7 +21,7 @@ module Network.Multiaddr
        , readMultiaddr
        , encode
        , decode
-       , TextIP(..)
+       , TextAddr(..)
          -- * Encapsulation
        , encapsulate
          -- * Query
@@ -186,14 +186,14 @@ ipv6B ip =
         trans = mconcat . intersperse (singleton ':') . map Builder.hexadecimal
 
 -- | Render an address to its standard text representation.
-class TextIP a where
+class TextAddr a where
   toText :: a -> Text
 
-instance TextIP IPv4 where
+instance TextAddr IPv4 where
   toText = toStrict . toLazyText . ipv4B
 
 -- | RFC 5952 Compliant
-instance TextIP IPv6 where
+instance TextAddr IPv6 where
   toText = toStrict . toLazyText . ipv6B
 
 instance Show IPv4 where
@@ -320,7 +320,7 @@ addrPartB (IPFSPart addr) = fromText "/ipfs/" <> fromText (T.decodeUtf8 addr)
 addrPartB UDTPart = fromText "/udt"
 addrPartB UTPPart = fromText "/utp"
 
-instance TextIP AddrPart where
+instance TextAddr AddrPart where
   toText = toStrict . toLazyText . addrPartB
 
 instance Show AddrPart where
@@ -329,7 +329,7 @@ instance Show AddrPart where
 multiaddrB :: Multiaddr -> Builder
 multiaddrB (Multiaddr ps) = mconcat (map addrPartB ps)
 
-instance TextIP Multiaddr where
+instance TextAddr Multiaddr where
   toText = toStrict . toLazyText . multiaddrB
 
 instance Show Multiaddr where
