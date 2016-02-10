@@ -181,6 +181,8 @@ data AddrPart = IPv4Part !IPv4
               | UDPPart !Word16
               | TCPPart !Word16
               | IPFSPart !ByteString
+              | UDTPart
+              | UTPPart
               deriving (Eq, Show)
 
 instance Serialize AddrPart where
@@ -192,6 +194,8 @@ instance Serialize AddrPart where
     put (421 :: Varint Word32)
     put (fromIntegral (BS.length addr) :: Varint Word64)
     mapM_ put (BS.unpack addr)
+  put UDTPart = put (301 :: Varint Word32)
+  put UTPPart = put (302 :: Varint Word32)
 
   get = do
     code <- get :: Get (Varint Word32)
@@ -203,6 +207,8 @@ instance Serialize AddrPart where
       421 -> do
         len <- get :: Get (Varint Word64)
         IPFSPart <$> getBytes (fromIntegral len)
+      301 -> pure UDTPart
+      302 -> pure UTPPart
       _ -> fail "invalid multiaddr code"
 
 newtype Multiaddr = Multiaddr { _parts :: [AddrPart] }
@@ -226,6 +232,20 @@ udpPartP = do
   guard (port >= 0 && port <= 65535)
   pure (UDPPart (fromIntegral port))
 
+udtPartP :: Parser AddrPart
+udtPartP = string "/udt" >> pure UDTPart
+
+utpPartP :: Parser AddrPart
+utpPartP = string "/utp" >> pure UTPPart
+
+udpAddrP :: Parser Multiaddr
+udpAddrP = do
+  udp <- udpPartP
+  sub <- option Nothing (Just <$> (udtPartP <|> utpPartP))
+  pure $ case sub of
+    Nothing -> Multiaddr [udp]
+    Just sub' -> Multiaddr [udp, sub']
+
 tcpPartP :: Parser AddrPart
 tcpPartP = do
   _ <- string "/tcp/"
@@ -239,13 +259,16 @@ ipfsPartP = do
   addr <- takeTill (== '/')
   pure (IPFSPart (T.encodeUtf8 addr))
 
+portAddrP :: Parser Multiaddr
+portAddrP = udpAddrP <|> ((\t -> Multiaddr [t]) <$> tcpPartP)
+
 addrP :: Parser Multiaddr
 addrP = do
   ipPart <- ipv4PartP <|> ipv6PartP <|> ipfsPartP
-  port <- option Nothing (Just <$> (udpPartP <|> tcpPartP))
+  port <- option Nothing (Just <$> portAddrP)
   pure $ case port of
     Nothing -> Multiaddr [ipPart]
-    Just port' -> Multiaddr [ipPart, port']
+    Just port' -> Multiaddr [ipPart] <> port'
 
 multiaddrP :: Parser Multiaddr
 multiaddrP = mconcat <$> many' addrP
@@ -259,6 +282,8 @@ addrPartB (IPv6Part ip) = fromText "/ip6/" <> ipv6B ip
 addrPartB (UDPPart port) = fromText "/udp/" <> Builder.decimal port
 addrPartB (TCPPart port) = fromText "/tcp/" <> Builder.decimal port
 addrPartB (IPFSPart addr) = fromText "/ipfs/" <> fromText (T.decodeUtf8 addr)
+addrPartB UDTPart = fromText "/udt"
+addrPartB UTPPart = fromText "/utp"
 
 multiaddrB :: Multiaddr -> Builder
 multiaddrB (Multiaddr parts) = mconcat (map addrPartB parts)
@@ -300,3 +325,5 @@ protocolNames (Multiaddr ms) = map protoName ms
         protoName (UDPPart _) = "udp"
         protoName (TCPPart _) = "tcp"
         protoName (IPFSPart _) = "ipfs"
+        protoName UDTPart = "udt"
+        protoName UTPPart = "utp"
