@@ -1,28 +1,50 @@
+{-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-|
+Module          : Network.Multiaddr
+Description     : A network address format
+Copyright       : (c) 2016 Micxjo Funkcio
+License         : BSD3
+Maintainer      : micxjo@fastmail.com
+Stability       : Experimental
+
+Multiaddr is a self-describing network address format supporting a
+variety of protocols, with both string and binary representations.
+-}
 module Network.Multiaddr
-       ( IPv4(..)
-       , IPv6(..)
-       , Multiaddr(..)
-       , AddrPart(..)
-       , TextIP(..)
-       , readIPv4
-       , readIPv6
-       , fromBytes
-       , fromPieces
+       ( -- * Multiaddr type
+         Multiaddr
+         -- * Encoding / decoding
        , readMultiaddr
-       , parts
        , encode
        , decode
+       , TextIP(..)
+         -- * Encapsulation
        , encapsulate
+         -- * Query
+       , parts
+       , protocolNames
        , hasIPv4
        , hasIPv6
        , hasUDP
        , hasTCP
        , hasIPFS
-       , protocolNames
+
+         -- * AddrPart type
+       , AddrPart(..)
+
+         -- * IPv4
+       , IPv4(..)
+       , readIPv4
+       , fromBytes
+
+         -- * IPv6 Type
+       , IPv6(..)
+       , readIPv6
+       , fromPieces
        ) where
 
 import           Control.Applicative ((<|>), many)
@@ -52,6 +74,7 @@ import qualified Data.Text.Lazy.Builder.Int as Builder
 
 import           Data.Serialize.Varint
 
+-- | An IPv4 address.
 data IPv4 = IPv4 {-# UNPACK #-} !Word32
           deriving (Eq, Ord, Bounded, Generic, Typeable)
 
@@ -61,6 +84,7 @@ instance Serialize IPv4 where
   get = IPv4 <$> get
   put (IPv4 w) = put w
 
+-- | An IPv6 address.
 data IPv6 = IPv6
             {-# UNPACK #-} !Word32
             {-# UNPACK #-} !Word32
@@ -161,6 +185,7 @@ ipv6B ip =
         end = drop (maxInd + maxRun) pieces
         trans = mconcat . intersperse (singleton ':') . map Builder.hexadecimal
 
+-- | Render an address to its standard text representation.
 class TextIP a where
   toText :: a -> Text
 
@@ -177,6 +202,7 @@ instance Show IPv4 where
 instance Show IPv6 where
   show = T.unpack . toText
 
+-- | An individual component of a multiaddr.
 data AddrPart = IPv4Part !IPv4
               | IPv6Part !IPv6
               | UDPPart !Word16
@@ -212,6 +238,7 @@ instance Serialize AddrPart where
       302 -> pure UTPPart
       _ -> fail "invalid multiaddr code"
 
+-- | A network address.
 newtype Multiaddr = Multiaddr { _parts :: [AddrPart] }
                   deriving (Eq, Monoid)
 
@@ -220,6 +247,8 @@ instance Serialize Multiaddr where
 
   put (Multiaddr ps) = mapM_ put ps
 
+-- | Get the individual parts of the multiaddr, in order
+-- (e.g. @["\/ip4\/8.8.8.8", "\/tcp\/80"]@)
 parts :: Multiaddr -> [AddrPart]
 parts = _parts
 
@@ -277,6 +306,8 @@ addrP = do
 multiaddrP :: Parser Multiaddr
 multiaddrP = mconcat <$> many' addrP
 
+-- | Try to read a multiaddr in the standard text format
+-- (e.g. @"\/ip4\/8.8.8.8\/tcp\/80"@)
 readMultiaddr :: Text -> Maybe Multiaddr
 readMultiaddr = hush . parseOnly (multiaddrP <* endOfInput)
 
@@ -304,30 +335,40 @@ instance TextIP Multiaddr where
 instance Show Multiaddr where
   show = T.unpack . toText
 
+-- | Encode a multiaddr using the standard binary represenation.
 encode :: Multiaddr -> ByteString
 encode = Cereal.encode
 
+-- | Try to decode a binary-encoded multiaddr.
 decode :: ByteString -> Maybe Multiaddr
 decode = hush . Cereal.decode
 
+-- | Does the multiaddr contain an IPv4 part?
 hasIPv4 :: Multiaddr -> Bool
 hasIPv4 (Multiaddr ps) = any (\case IPv4Part _ -> True; _ -> False) ps
 
+-- | Does the multiaddr contain an IPv6 part?
 hasIPv6 :: Multiaddr -> Bool
 hasIPv6 (Multiaddr ps) = any (\case IPv6Part _ -> True; _ -> False) ps
 
+-- | Does the multiaddr contain a TCP part?
 hasTCP :: Multiaddr -> Bool
 hasTCP (Multiaddr ps) = any (\case TCPPart _ -> True; _ -> False) ps
 
+-- | Does the multiaddr contain a UDP part?
 hasUDP :: Multiaddr -> Bool
 hasUDP (Multiaddr ps) = any (\case UDPPart _ -> True; _ -> False) ps
 
+-- | Does the multiaddr contain an IPFS part?
 hasIPFS :: Multiaddr -> Bool
 hasIPFS (Multiaddr ps) = any (\case IPFSPart _ -> True; _ -> False) ps
 
+-- | Append two multiaddrs (alias for @(<>)@)
 encapsulate :: Multiaddr -> Multiaddr -> Multiaddr
 encapsulate = mappend
 
+-- | Get an ordered list of the protocols specified by the multiaddr.
+-- Protocols can appear more than once if they are repeated in the multiaddr.
 protocolNames :: Multiaddr -> [Text]
 protocolNames (Multiaddr ms) = map protoName ms
   where protoName (IPv4Part _) = "ip4"
