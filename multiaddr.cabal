@@ -1,16 +1,19 @@
 name:                multiaddr
 version:             0.1.0
 synopsis:            A network address format
-description:         A network address format
+description:         Multiaddr is a self-describing network address format
+                     supporting a variety of protocols, with both string
+                     and binary representations.
 homepage:            http://github.com/micxjo/hs-multiaddr
 license:             BSD3
 license-file:        LICENSE
-author:              Micxjo Funkcxio <micxjo@fastmail.com>
-maintainer:          Micxjo Funkcxio <micxjo@fastmail.com>
+author:              Micxjo Funkcio <micxjo@fastmail.com>
+maintainer:          Micxjo Funkcio <micxjo@fastmail.com>
 copyright:           (c) 2016 Micxjo Funkcio
-category:            Web
+category:            Network
 build-type:          Simple
 cabal-version:       >=1.10
+extra-source-files:  README.md
 
 library
   hs-source-dirs:      src
@@ -30,7 +33,7 @@ test-suite multiaddr-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             test.hs
-  build-depends:       base
+  build-depends:       base >= 4.7 && < 5
                      , multiaddr
                      , tasty
                      , tasty-hunit
