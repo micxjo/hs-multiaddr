@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
 {-|
 Module          : Network.Multiaddr
@@ -47,7 +48,7 @@ module Network.Multiaddr
        , fromPieces
        ) where
 
-import           Control.Applicative ((<|>), many)
+import           Control.Applicative (many)
 import           Control.Monad (guard)
 import           Data.Bits
 import           Data.List (intersperse, scanl', elemIndex)
@@ -215,6 +216,8 @@ data AddrPart = IPv4Part !IPv4
               | IPFSPart !ByteString
               | UDTPart
               | UTPPart
+              | HTTPPart
+              | HTTPSPart
               deriving (Eq, Generic, Typeable)
 
 instance Hashable AddrPart
@@ -233,6 +236,8 @@ instance Serialize AddrPart where
         mapM_ put (BS.unpack bytes)
   put UDTPart = put (301 :: Varint Word32)
   put UTPPart = put (302 :: Varint Word32)
+  put HTTPPart = put (480 :: Varint Word32)
+  put HTTPSPart = put (443 :: Varint Word32)
 
   get = do
     code <- get :: Get (Varint Word32)
@@ -248,6 +253,8 @@ instance Serialize AddrPart where
         pure (IPFSPart base58)
       301 -> pure UDTPart
       302 -> pure UTPPart
+      480 -> pure HTTPPart
+      443 -> pure HTTPSPart
       _ -> fail "invalid multiaddr code"
 
 -- | A network address.
@@ -285,13 +292,11 @@ udtPartP = string "/udt" >> pure UDTPart
 utpPartP :: Parser AddrPart
 utpPartP = string "/utp" >> pure UTPPart
 
-udpAddrP :: Parser Multiaddr
-udpAddrP = do
-  udp <- udpPartP
-  sub <- option Nothing (Just <$> (udtPartP <|> utpPartP))
-  pure $ case sub of
-    Nothing -> Multiaddr [udp]
-    Just sub' -> Multiaddr [udp, sub']
+httpPartP :: Parser AddrPart
+httpPartP = string "/http" >> pure HTTPPart
+
+httpsPartP :: Parser AddrPart
+httpsPartP = string "/https" >> pure HTTPSPart
 
 tcpPartP :: Parser AddrPart
 tcpPartP = do
@@ -306,19 +311,19 @@ ipfsPartP = do
   addr <- takeTill (== '/')
   pure (IPFSPart (T.encodeUtf8 addr))
 
-portAddrP :: Parser Multiaddr
-portAddrP = udpAddrP <|> ((\t -> Multiaddr [t]) <$> tcpPartP)
-
-addrP :: Parser Multiaddr
-addrP = do
-  ipPart <- ipv4PartP <|> ipv6PartP <|> ipfsPartP
-  port <- option Nothing (Just <$> portAddrP)
-  pure $ case port of
-    Nothing -> Multiaddr [ipPart]
-    Just port' -> Multiaddr [ipPart] <> port'
-
 multiaddrP :: Parser Multiaddr
-multiaddrP = mconcat <$> many' addrP
+multiaddrP = do
+  _parts <- many' (choice [ ipv4PartP
+                         , ipv6PartP
+                         , ipfsPartP
+                         , udpPartP
+                         , tcpPartP
+                         , udtPartP
+                         , utpPartP
+                         , httpPartP
+                         , httpsPartP
+                         ])
+  pure Multiaddr{..}
 
 -- | Try to read a multiaddr in the standard text format
 -- (e.g. @"\/ip4\/8.8.8.8\/tcp\/80"@)
@@ -333,6 +338,8 @@ addrPartB (TCPPart port) = fromText "/tcp/" <> Builder.decimal port
 addrPartB (IPFSPart addr) = fromText "/ipfs/" <> fromText (T.decodeUtf8 addr)
 addrPartB UDTPart = fromText "/udt"
 addrPartB UTPPart = fromText "/utp"
+addrPartB HTTPPart = fromText "/http"
+addrPartB HTTPSPart = fromText "/https"
 
 instance TextAddr AddrPart where
   toText = toStrict . toLazyText . addrPartB
@@ -392,3 +399,5 @@ protocolNames (Multiaddr ms) = map protoName ms
         protoName (IPFSPart _) = "ipfs"
         protoName UDTPart = "udt"
         protoName UTPPart = "utp"
+        protoName HTTPPart = "http"
+        protoName HTTPSPart = "https"
