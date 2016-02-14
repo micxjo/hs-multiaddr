@@ -33,6 +33,7 @@ module Network.Multiaddr
        , hasUDP
        , hasTCP
        , hasDCCP
+       , hasSCTP
        , hasIPFS
 
          -- * AddrPart type
@@ -215,6 +216,7 @@ data AddrPart = IPv4Part !IPv4
               | UDPPart !Word16
               | TCPPart !Word16
               | DCCPPart !Word16
+              | SCTPPart !Word16
               | IPFSPart !ByteString
               | UDTPart
               | UTPPart
@@ -230,6 +232,7 @@ instance Serialize AddrPart where
   put (UDPPart port) = put (17 :: Varint Word32) >> put port
   put (TCPPart port) = put (6 :: Varint Word32) >> put port
   put (DCCPPart port) = put (33 :: Varint Word32) >> put port
+  put (SCTPPart port) = put (132 :: Varint Word32) >> put port
   put (IPFSPart addr) = do
     put (421 :: Varint Word32)
     case decodeBase58 bitcoinAlphabet addr of
@@ -250,6 +253,7 @@ instance Serialize AddrPart where
       17 -> UDPPart <$> get
       33 -> DCCPPart <$> get
       41 -> IPv6Part <$> get
+      132 -> SCTPPart <$> get
       421 -> do
         len <- get :: Get (Varint Word64)
         bytes <- getBytes (fromIntegral len)
@@ -297,6 +301,13 @@ dccpPartP = do
   guard (port >= 0 && port <= 65535)
   pure (DCCPPart (fromIntegral port))
 
+sctpPartP :: Parser AddrPart
+sctpPartP = do
+  _ <- string "/sctp/"
+  port <- decimal :: Parser Integer
+  guard (port >= 0 && port <= 65535)
+  pure (SCTPPart (fromIntegral port))
+
 udtPartP :: Parser AddrPart
 udtPartP = string "/udt" >> pure UDTPart
 
@@ -330,6 +341,7 @@ multiaddrP = do
                          , udpPartP
                          , tcpPartP
                          , dccpPartP
+                         , sctpPartP
                          , udtPartP
                          , utpPartP
                          , httpPartP
@@ -348,6 +360,7 @@ addrPartB (IPv6Part ip) = fromText "/ip6/" <> ipv6B ip
 addrPartB (UDPPart port) = fromText "/udp/" <> Builder.decimal port
 addrPartB (TCPPart port) = fromText "/tcp/" <> Builder.decimal port
 addrPartB (DCCPPart port) = fromText "/dccp/" <> Builder.decimal port
+addrPartB (SCTPPart port) = fromText "/sctp/" <> Builder.decimal port
 addrPartB (IPFSPart addr) = fromText "/ipfs/" <> fromText (T.decodeUtf8 addr)
 addrPartB UDTPart = fromText "/udt"
 addrPartB UTPPart = fromText "/utp"
@@ -397,6 +410,10 @@ hasUDP (Multiaddr ps) = any (\case UDPPart _ -> True; _ -> False) ps
 hasDCCP :: Multiaddr -> Bool
 hasDCCP (Multiaddr ps) = any (\case DCCPPart _ -> True; _ -> False) ps
 
+-- | Does the multiaddr contain an SCTP part?
+hasSCTP :: Multiaddr -> Bool
+hasSCTP (Multiaddr ps) = any (\case SCTPPart _ -> True; _ -> False) ps
+
 -- | Does the multiaddr contain an IPFS part?
 hasIPFS :: Multiaddr -> Bool
 hasIPFS (Multiaddr ps) = any (\case IPFSPart _ -> True; _ -> False) ps
@@ -414,6 +431,7 @@ protocolNames (Multiaddr ms) = map protoName ms
         protoName (UDPPart _) = "udp"
         protoName (TCPPart _) = "tcp"
         protoName (DCCPPart _) = "dccp"
+        protoName (SCTPPart _) = "sctp"
         protoName (IPFSPart _) = "ipfs"
         protoName UDTPart = "udt"
         protoName UTPPart = "utp"
