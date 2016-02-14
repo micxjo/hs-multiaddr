@@ -93,6 +93,7 @@ multiaddrTests = testGroup "multiaddr"
     , "/ip4/127.0.0.1"
     , "/ip4/127.0.0.1/tcp/80"
     , "/ip4/127.0.0.1/http"
+    , "/ip4/127.0.0.1/dccp/49"
     , "/ip4/127.0.0.1/tcp/80/ip6/::1"
     , "/ip4/127.0.0.1/tcp/80/ip6/::1/udp/1234"
     , "/ipfs/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC"
@@ -107,6 +108,7 @@ multiaddrTests = testGroup "multiaddr"
     [ ""
     , "/ip4/127.0.0.1"
     , "/ip4/127.0.0.1/http"
+    , "/ip4/127.0.0.1/dccp/49"
     , "/ip4/127.0.0.1/tcp/80"
     , "/ip4/127.0.0.1/tcp/80/ip6/::1"
     , "/ip4/127.0.0.1/tcp/80/ip6/::1/udp/1234"
@@ -120,6 +122,7 @@ multiaddrTests = testGroup "multiaddr"
     mapM_ (\(ma, ps) -> protocolNames (fromJust (readMultiaddr ma)) @?= ps)
     [ ("", [])
     , ("/ip4/127.0.0.1", ["ip4"])
+    , ("/ip4/127.0.0.1/dccp/49", ["ip4", "dccp"])
     , ("/ip4/127.0.0.1/tcp/80", ["ip4", "tcp"])
     , ("/ip4/127.0.0.1/http", ["ip4", "http"])
     , ("/ip4/127.0.0.1/tcp/80/ip6/::1", ["ip4", "tcp", "ip6"])
