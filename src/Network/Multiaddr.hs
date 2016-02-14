@@ -61,6 +61,8 @@ import           Control.Error (hush)
 import           Data.Attoparsec.Text hiding (take)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import           Data.ByteString.Base58 (encodeBase58, decodeBase58,
+                                         bitcoinAlphabet)
 import           Data.Hashable (Hashable)
 import           Data.Serialize (Serialize(..), Get, getBytes)
 import qualified Data.Serialize as Cereal
@@ -224,8 +226,11 @@ instance Serialize AddrPart where
   put (TCPPart port) = put (6 :: Varint Word32) >> put port
   put (IPFSPart addr) = do
     put (421 :: Varint Word32)
-    put (fromIntegral (BS.length addr) :: Varint Word64)
-    mapM_ put (BS.unpack addr)
+    case decodeBase58 bitcoinAlphabet addr of
+      Nothing -> fail "invalid base58"
+      Just bytes -> do
+        put (fromIntegral (BS.length bytes) :: Varint Word64)
+        mapM_ put (BS.unpack bytes)
   put UDTPart = put (301 :: Varint Word32)
   put UTPPart = put (302 :: Varint Word32)
 
@@ -238,7 +243,9 @@ instance Serialize AddrPart where
       41 -> IPv6Part <$> get
       421 -> do
         len <- get :: Get (Varint Word64)
-        IPFSPart <$> getBytes (fromIntegral len)
+        bytes <- getBytes (fromIntegral len)
+        let base58 = encodeBase58 bitcoinAlphabet bytes
+        pure (IPFSPart base58)
       301 -> pure UDTPart
       302 -> pure UTPPart
       _ -> fail "invalid multiaddr code"

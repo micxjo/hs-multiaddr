@@ -27,6 +27,7 @@ library
                      , errors
                      , cereal
                      , bytestring
+                     , base58-bytestring >= 0.1.0 && < 0.2.0
   default-language:    Haskell2010
 
 test-suite multiaddr-test
