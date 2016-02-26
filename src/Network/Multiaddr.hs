@@ -32,6 +32,8 @@ module Network.Multiaddr
        , hasIPv6
        , hasUDP
        , hasTCP
+       , hasUDT
+       , hasUTP
        , hasDCCP
        , hasSCTP
        , hasIPFS
@@ -406,6 +408,14 @@ hasTCP (Multiaddr ps) = any (\case TCP _ -> True; _ -> False) ps
 -- | Does the multiaddr contain a UDP part?
 hasUDP :: Multiaddr -> Bool
 hasUDP (Multiaddr ps) = any (\case UDP _ -> True; _ -> False) ps
+
+-- | Does the multiaddr contain a UDT part?
+hasUDT :: Multiaddr -> Bool
+hasUDT (Multiaddr ps) = any (== UDT) ps
+
+-- | Does the multiaddr contain a UTP part?
+hasUTP :: Multiaddr -> Bool
+hasUTP (Multiaddr ps) = any (== UTP) ps
 
 -- | Does the multiaddr contain a DCCP part?
 hasDCCP :: Multiaddr -> Bool
