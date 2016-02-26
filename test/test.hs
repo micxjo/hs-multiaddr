@@ -8,10 +8,10 @@ import qualified Test.Tasty.QuickCheck as QC
 
 import           Network.Multiaddr
 
-instance QC.Arbitrary IPv4 where
+instance QC.Arbitrary IPv4Addr where
   arbitrary = fromBytes <$> QC.arbitrary
 
-instance QC.Arbitrary IPv6 where
+instance QC.Arbitrary IPv6Addr where
   arbitrary = do
     (a, b, c, d) <- QC.arbitrary
     (e, f, g, h) <- QC.arbitrary
@@ -20,10 +20,10 @@ instance QC.Arbitrary IPv6 where
 ipv4Tests :: TestTree
 ipv4Tests = testGroup "IPv4"
   [ QC.testProperty "round trips" $
-    \ipv4 -> readIPv4 (toText (ipv4 :: IPv4)) == Just ipv4
+    \ipv4 -> readIPv4Addr (toText (ipv4 :: IPv4Addr)) == Just ipv4
 
   , testCase "parses and formats sample IPs" $
-    mapM_ (\t -> toText (fromJust (readIPv4 t)) @?= t)
+    mapM_ (\t -> toText (fromJust (readIPv4Addr t)) @?= t)
     [ "0.0.0.0"
     , "0.0.0.1"
     , "1.1.1.1"
@@ -33,7 +33,7 @@ ipv4Tests = testGroup "IPv4"
     , "255.255.255.255"
     ]
 
-  , testCase "fails to parse bad IPs" $ mapM_ (\t -> readIPv4 t @?= Nothing)
+  , testCase "fails to parse bad IPs" $ mapM_ (\t -> readIPv4Addr t @?= Nothing)
     [ ""
     , "foo"
     , "..."
@@ -46,28 +46,28 @@ ipv4Tests = testGroup "IPv4"
     ]
 
   , testCase "Bounded instance" $ do
-      (minBound :: IPv4) @?= IPv4 0
-      (maxBound :: IPv4) @?= IPv4 0xFFFFFFFF
+      (minBound :: IPv4Addr) @?= IPv4Addr 0
+      (maxBound :: IPv4Addr) @?= IPv4Addr 0xFFFFFFFF
   ]
 
 ipv6Tests :: TestTree
 ipv6Tests = testGroup "IPv6"
   [ testCase "parses sample IPs" $ do
-      readIPv6 "::" @?= Just (IPv6 0 0 0 0)
-      readIPv6 "::1" @?= Just (IPv6 0 0 0 1)
-      readIPv6 "::2" @?= Just (IPv6 0 0 0 2)
-      readIPv6 "::ffff" @?= Just (IPv6 0 0 0 0xFFFF)
-      readIPv6 "::ff:ffff" @?= Just (IPv6 0 0 0 0xFFFFFF)
-      readIPv6 "::ffff:ffff" @?= Just (IPv6 0 0 0 0xFFFFFFFF)
-      readIPv6 "2001:0DB8:AC10:FE01:0000:0000:0000:0000" @?=
-        Just (IPv6 0x20010DB8 0xAC10FE01 0 0)
-      readIPv6 "2001:0DB8:AC10:FE01:0:0:0:0" @?=
-        Just (IPv6 0x20010DB8 0xAC10FE01 0 0)
-      readIPv6 "2001:db8:ac10:fe01::" @?=
-        Just (IPv6 0x20010DB8 0xAC10FE01 0 0)
+      readIPv6Addr "::" @?= Just (IPv6Addr 0 0 0 0)
+      readIPv6Addr "::1" @?= Just (IPv6Addr 0 0 0 1)
+      readIPv6Addr "::2" @?= Just (IPv6Addr 0 0 0 2)
+      readIPv6Addr "::ffff" @?= Just (IPv6Addr 0 0 0 0xFFFF)
+      readIPv6Addr "::ff:ffff" @?= Just (IPv6Addr 0 0 0 0xFFFFFF)
+      readIPv6Addr "::ffff:ffff" @?= Just (IPv6Addr 0 0 0 0xFFFFFFFF)
+      readIPv6Addr "2001:0DB8:AC10:FE01:0000:0000:0000:0000" @?=
+        Just (IPv6Addr 0x20010DB8 0xAC10FE01 0 0)
+      readIPv6Addr "2001:0DB8:AC10:FE01:0:0:0:0" @?=
+        Just (IPv6Addr 0x20010DB8 0xAC10FE01 0 0)
+      readIPv6Addr "2001:db8:ac10:fe01::" @?=
+        Just (IPv6Addr 0x20010DB8 0xAC10FE01 0 0)
 
   , testCase "round trips RFC 5952 IPs" $
-    mapM_ (\t -> toText (fromJust (readIPv6 t)) @?= t)
+    mapM_ (\t -> toText (fromJust (readIPv6Addr t)) @?= t)
     [ "::"
     , "::1"
     , "::1:1"
@@ -78,11 +78,12 @@ ipv6Tests = testGroup "IPv6"
     ]
 
   , QC.testProperty "round trips arbitrary IPs" $
-    \ip -> readIPv6 (toText (ip :: IPv6)) == Just ip
+    \ip -> readIPv6Addr (toText (ip :: IPv6Addr)) == Just ip
 
   , testCase "Bounded instance" $ do
-      (minBound :: IPv6) @?= IPv6 0 0 0 0
-      (maxBound :: IPv6) @?= IPv6 0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF
+      (minBound :: IPv6Addr) @?= IPv6Addr 0 0 0 0
+      (maxBound :: IPv6Addr) @?=
+        IPv6Addr 0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF
   ]
 
 multiaddrTests :: TestTree
